@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: user-app-project
+  namespace: argocd
+spec:
+  description: User App Project
+
+  # Allowed Git repos
+  sourceRepos:
+    - https://github.com/YOUR_USERNAME/user-management-devops.git
+
+  # Allowed destinations
+  destinations:
+    - namespace: user-app
+      server: https://kubernetes.default.svc
+
+  # Allow all cluster resources
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Allow all namespace resources
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

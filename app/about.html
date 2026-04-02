@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - User Management App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="logo">📱 User Management App</h1>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="users.html">Users</a></li>
+                <li><a href="about.html" class="active">About</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="about-section">
+            <h1>About This Application</h1>
+
+            <div class="about-content">
+                <h2>What is a Static Application?</h2>
+                <p>
+                    A static application is a web application that doesn't require a backend server to store data. 
+                    Instead, it uses the browser's local storage to save data locally on your device.
+                </p>
+
+                <h2>How Does It Work?</h2>
+                <div class="flow-diagram">
+                    <div class="flow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>User Opens Page</h3>
+                            <p>HTML/CSS/JavaScript files load in browser</p>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>JavaScript Runs</h3>
+                            <p>JavaScript code executes in the browser</p>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Data Stored</h3>
+                            <p>Data saved to browser's localStorage</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>Key Features</h2>
+                <ul class="features-list">
+                    <li>✅ <strong>No Server Needed</strong> - Everything runs in your browser</li>
+                    <li>✅ <strong>Fast Loading</strong> - No network delay for database queries</li>
+                    <li>✅ <strong>Data Persistence</strong> - Data saved locally in your browser</li>
+                    <li>✅ <strong>Offline Capable</strong> - Works without internet connection</li>
+                    <li>✅ <strong>Easy to Deploy</strong> - Just copy HTML/CSS/JS files</li>
+                </ul>
+
+                <h2>Technologies Used</h2>
+                <div class="tech-grid">
+                    <div class="tech-card">
+                        <h3>HTML</h3>
+                        <p>Structure and content</p>
+                    </div>
+                    <div class="tech-card">
+                        <h3>CSS</h3>
+                        <p>Styling and layout</p>
+                    </div>
+                    <div class="tech-card">
+                        <h3>JavaScript</h3>
+                        <p>Interactivity and logic</p>
+                    </div>
+                    <div class="tech-card">
+                        <h3>LocalStorage</h3>
+                        <p>Client-side data storage</p>
+                    </div>
+                </div>
+
+                <h2>Comparison: Static vs Dynamic</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Aspect</th>
+                            <th>Static App (This App)</th>
+                            <th>Dynamic App (Python/Flask)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Backend Server</td>
+                            <td>❌ Not needed</td>
+                            <td>✅ Required</td>
+                        </tr>
+                        <tr>
+                            <td>Database</td>
+                            <td>🔷 Browser LocalStorage</td>
+                            <td>🔷 Server Database (SQLite)</td>
+                        </tr>
+                        <tr>
+                            <td>Speed</td>
+                            <td>⚡ Very Fast</td>
+                            <td>🔄 Depends on server</td>
+                        </tr>
+                        <tr>
+                            <td>Deployment</td>
+                            <td>📁 Simply copy files</td>
+                            <td>⚙️ Setup server needed</td>
+                        </tr>
+                        <tr>
+                            <td>Data Sharing</td>
+                            <td>👤 Single user only</td>
+                            <td>👥 Multiple users</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 User Management App. All rights reserved.</p>
+    </footer>
+</body>
+</html>

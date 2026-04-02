@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users - User Management App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="logo">📱 User Management App</h1>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="users.html" class="active">Users</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="users-section">
+            <h1>👥 Manage Users</h1>
+            
+            <div class="controls">
+                <input type="text" id="searchInput" class="search-box" placeholder="Search users by name...">
+                <button onclick="addNewUser()" class="btn btn-primary">+ Add User</button>
+            </div>
+
+            <div id="usersContainer" class="users-grid">
+                <!-- Users will be loaded here by JavaScript -->
+            </div>
+
+            <div id="noResults" class="no-results" style="display: none;">
+                <p>No users found</p>
+            </div>
+        </section>
+
+        <!-- Add/Edit User Modal -->
+        <div id="userModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2 id="modalTitle">Add New User</h2>
+                <form id="userForm">
+                    <div class="form-group">
+                        <label for="userName">Name:</label>
+                        <input type="text" id="userName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userEmail">Email:</label>
+                        <input type="email" id="userEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPhone">Phone:</label>
+                        <input type="tel" id="userPhone" required>
+                    </div>
+                    <div class="form-buttons">
+                        <button type="submit" class="btn btn-primary">Save User</button>
+                        <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 User Management App. All rights reserved.</p>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="users.js"></script>
+</body>
+</html>
