@@ -1,10 +1,141 @@
+# ===== Prometheus Community Helm Chart Values =====
+# For kube-prometheus-stack
+
+# ===== Grafana Configuration =====
 grafana:
+  enabled: true
+
   adminUser: admin
-  adminPassword: admin
+  # IMPORTANT: Change this password in production!
+  adminPassword: changeme123!
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: default
+
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-operated:9090
+        access: proxy
+        isDefault: true
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'Prometheus'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/Prometheus
 
   service:
     type: LoadBalancer
+    port: 80
+    targetPort: 3000
 
+  ingress:
+    enabled: false
+    # Uncomment for ingress:
+    # hosts:
+    #   - grafana.example.com
+    # tls:
+    #   - secretName: grafana-tls
+    #     hosts:
+    #       - grafana.example.com
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# ===== Prometheus Configuration =====
 prometheus:
+  enabled: true
+
   service:
     type: LoadBalancer
+    port: 9090
+
+  prometheusSpec:
+    # Retention
+    retention: 24h
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Resources
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+    # Scrape interval
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+
+    # Service monitor selector
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+# ===== Alertmanager Configuration =====
+alertmanager:
+  enabled: true
+
+  service:
+    type: ClusterIP
+    port: 9093
+
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+# ===== Node Exporter =====
+nodeExporter:
+  enabled: true
+
+# ===== Kube State Metrics =====
+kubeStateMetrics:
+  enabled: true
+
+# ===== Prometheus Node Exporter =====
+prometheus-node-exporter:
+  enabled: true
+
+# ===== Kube Controller Manager =====
+kubeControllerManager:
+  enabled: true
+
+# ===== Kube Etcd =====
+kubeEtcd:
+  enabled: false  # Disable if etcd not accessible
+
+# ===== Kube Scheduler =====
+kubeScheduler:
+  enabled: true
+
+# ===== Kube Proxy =====
+kubeProxy:
+  enabled: true

@@ -1,24 +1,70 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: user-app
+  name: static-app-app
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
 spec:
-  project: user-app-project
+  # Project
+  project: static-app-project
 
+  # Source repository
   source:
-    repoURL: https://github.com/YOUR_USERNAME/user-management-devops.git
+    repoURL: https://github.com/YOUR_USERNAME/Test-Static-Application
     targetRevision: main
-    path: k8s
+    path: K8s
 
+  # Destination cluster
   destination:
     server: https://kubernetes.default.svc
-    namespace: user-app
+    namespace: static-app
 
+  # Sync policy
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: true        # Delete resources not in git
+      selfHeal: true     # Auto-sync when cluster changes
+      allow:
+        empty: false     # Disallow syncing empty repositories
 
     syncOptions:
-      - CreateNamespace=true
+    - CreateNamespace=true
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore certain resource differences
+  ignoreDifferences:
+  - group: "apps"
+    kind: "Deployment"
+    jsonPointers:
+    - /spec/replicas
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: static-app-service
+  namespace: argocd
+  labels:
+    app: argocd
+    component: server
+
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+  - port: 443
+    targetPort: 8443
+    name: https
+  selector:
+    app: argocd
+    component: server

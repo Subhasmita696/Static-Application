@@ -1,31 +1,162 @@
-name: Terraform Infra
+name: Build, Scan & Deploy
 
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: acr.azurecr.io  # Change to ECR if using AWS
+  IMAGE_NAME: static-app
+  DOCKER_TAG: ${{ github.sha }}
 
 jobs:
-  terraform:
+  build-and-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      - name: AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      # ===== CODE BUILD =====
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: eu-west-1
+          node-version: '18'
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Build application
+        run: |
+          echo "Building static application..."
+          npm install --prefix ./app
+          npm run build --prefix ./app || echo "No build script, skipping"
 
-      - name: Terraform Plan
-        run: terraform plan
+      # ===== SONARQUBE SCAN =====
+      - name: SonarQube Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=static-app
+            -Dsonar.organization=your-org
+            -Dsonar.sources=app/
+            -Dsonar.exclusions=node_modules/**
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
+      # ===== DOCKER BUILD =====
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            -f Dockerfile .
+
+      # ===== TRIVY SCAN =====
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # ===== PUSH TO REGISTRY =====
+      - name: Login to ACR
+        if: github.event_name == 'push'
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Push Docker image to ACR
+        if: github.event_name == 'push'
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      # For AWS ECR instead of ACR, uncomment:
+      # - name: Login to ECR
+      #   if: github.event_name == 'push'
+      #   uses: aws-actions/amazon-ecr-login@v1
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+      #     aws-region: eu-west-1
+      #
+      # - name: Push to ECR
+      #   if: github.event_name == 'push'
+      #   run: |
+      #     docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+
+  deploy:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # ===== DEPLOY TO AKS =====
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Update image in deployment
+        run: |
+          kubectl set image deployment/static-app \
+            static-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }} \
+            -n default --record
+
+      # For EKS instead, uncomment:
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v2
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+      #     aws-region: eu-west-1
+      #
+      # - name: Update kubeconfig for EKS
+      #   run: |
+      #     aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region eu-west-1
+      #
+      # - name: Update image in deployment
+      #   run: |
+      #     kubectl set image deployment/static-app \
+      #       static-app=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }} \
+      #       -n default --record
+
+      # ===== ARGOCD SYNC =====
+      - name: Trigger ArgoCD sync
+        run: |
+          # Using ArgoCD CLI
+          argocd app sync static-app-app \
+            --refresh \
+            --prune \
+            --grpc-web \
+            --server ${{ secrets.ARGOCD_SERVER }} \
+            --auth-token ${{ secrets.ARGOCD_TOKEN }}
+
+      - name: Wait for ArgoCD sync
+        run: |
+          argocd app wait static-app-app \
+            --sync \
+            --grpc-web \
+            --server ${{ secrets.ARGOCD_SERVER }} \
+            --auth-token ${{ secrets.ARGOCD_TOKEN }}

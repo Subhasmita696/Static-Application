@@ -1,0 +1,40 @@
+# ===== Copy this file to terraform.tfvars and fill in your values =====
+# cp terraform.tfvars.example terraform.tfvars
+
+# ===== Global Configuration =====
+environment  = "dev"  # dev, staging, or prod
+project_name = "static-app"
+
+# ===== AWS Configuration =====
+aws_region              = "eu-west-1"
+aws_profile             = "default"  # AWS CLI profile to use
+
+# REQUIRED: Get these from your AWS account
+# Get VPC ID:  aws ec2 describe-vpcs --query 'Vpcs[0].VpcId'
+# Get Subnets: aws ec2 describe-subnets --query 'Subnets[*].[SubnetId,AvailabilityZone]'
+vpc_id    = ""  # Example: "vpc-0123456789abcdef"
+subnet_ids = []  # Example: ["subnet-abc123", "subnet-def456"]
+
+# EKS Node Configuration
+eks_node_instance_types = ["t3.medium"]  # Cost-effective
+eks_desired_size        = 2
+eks_min_size            = 2
+eks_max_size            = 5
+
+# ===== Azure Configuration =====
+azure_location         = "westeurope"  # westeurope, eastus, centralus, etc.
+azure_subscription_id  = ""  # Get from: az account show --query id
+
+# AKS Node Configuration
+aks_node_count         = 2
+aks_vm_size            = "Standard_B2s"  # Cost-effective
+aks_kubernetes_version = "1.29"
+
+# ===== Tags (applied to all resources) =====
+tags = {
+  Project     = "static-app"
+  Environment = "dev"
+  ManagedBy   = "Terraform"
+  Owner       = "your-team"
+  CostCenter  = "engineering"
+}

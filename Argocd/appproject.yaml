@@ -1,26 +1,60 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: user-app-project
+  name: static-app-project
   namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+
 spec:
-  description: User App Project
+  description: Static App Project
 
-  # Allowed Git repos
+  # Allowed source repositories
   sourceRepos:
-    - https://github.com/YOUR_USERNAME/user-management-devops.git
+  - https://github.com/YOUR_USERNAME/Test-Static-Application
+  - 'https://prometheus-community.github.io/helm-charts'  # For monitoring
+  - 'https://charts.bitnami.com/bitnami'  # For common charts
 
-  # Allowed destinations
+  # Allowed deployment targets
   destinations:
-    - namespace: user-app
-      server: https://kubernetes.default.svc
+  - namespace: 'static-app'
+    server: https://kubernetes.default.svc
+  - namespace: 'argocd'
+    server: https://kubernetes.default.svc
+  - namespace: 'monitoring'
+    server: https://kubernetes.default.svc
+  - namespace: 'kube-system'
+    server: https://kubernetes.default.svc
 
-  # Allow all cluster resources
+  # Cluster resource whitelist
   clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
+  - group: '*'
+    kind: '*'
 
-  # Allow all namespace resources
+  # Namespace resource blacklist (optional - nothing is denied by default)
+  # namespaceResourceBlacklist:
+  # - group: ''
+  #   kind: 'ResourceQuota'
+  # - group: ''
+  #   kind: 'LimitRange'
+  # - group: ''
+  #   kind: 'NetworkPolicy'
+
+  # Namespace resource whitelist
   namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+  - group: '*'
+    kind: '*'
+
+  # Deny list of resources that cannot be deployed
+  namespaceResourceDenylist:
+  - group: ''
+    kind: 'ResourceQuota'
+  - group: ''
+    kind: 'LimitRange'
+
+  # Orphaned resources (set retention policy)
+  orphanedResources:
+    warn: true
+    ignore:
+    - group: 'apps'
+      kind: 'StatefulSet'

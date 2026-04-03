@@ -1,19 +1,190 @@
 trigger:
-- main
+  - main
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- task: TerraformInstaller@1
-  inputs:
-    terraformVersion: 'latest'
+variables:
+  dockerRegistryServiceConnection: 'acr-connection'
+  imageRepository: 'static-app'
+  containerRegistry: 'acr.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+  latestTag: 'latest'
 
-- script: terraform init
-  displayName: Init
+stages:
+  - stage: Build
+    displayName: Build and Scan Code
+    jobs:
+      - job: BuildAndScan
+        displayName: Build and Scan
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '18.x'
+            displayName: 'Install Node.js'
 
-- script: terraform plan
-  displayName: Plan
+          # ===== CODE BUILD =====
+          - script: |
+              echo "Building static application..."
+              npm install --prefix ./app
+              npm run build --prefix ./app || echo "No build script, skipping"
+            displayName: 'Build Application'
 
-- script: terraform apply -auto-approve
-  displayName: Apply
+          # ===== SONARQUBE SCAN =====
+          - task: SonarCloudPrepare@1
+            inputs:
+              SonarCloud: 'SonarQubeConnection'
+              organization: '$(SONARQUBE_ORG)'
+              scannerMode: 'CLI'
+              configMode: 'manual'
+              cliProjectKey: 'static-app'
+              cliProjectName: 'Static App'
+              cliSources: './app'
+              extraProperties: |
+                sonar.exclusions=**/node_modules/**
+            displayName: 'SonarQube - Prepare Analysis'
+
+          - task: SonarCloudAnalyze@1
+            displayName: 'SonarQube - Run Analysis'
+
+          - task: SonarCloudPublish@1
+            inputs:
+              pollingTimeoutSec: '300'
+            displayName: 'SonarQube - Publish Quality Gate'
+
+  - stage: BuildDocker
+    displayName: Build Docker Image
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: BuildImage
+        displayName: Build and Scan Docker Image
+        steps:
+          - task: Docker@2
+            displayName: 'Build Docker Image'
+            inputs:
+              command: 'build'
+              Dockerfile: $(dockerfilePath)
+              repository: $(containerRegistry)/$(imageRepository)
+              tags: |
+                $(tag)
+                $(latestTag)
+
+          # ===== TRIVY SCAN =====
+          - script: |
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | apt-key add -
+              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | tee -a /etc/apt/sources.list.d/trivy.list
+              apt-get update && apt-get install -y trivy
+            displayName: 'Install Trivy'
+
+          - script: |
+              trivy image --exit-code 0 --no-progress --format json \
+                --output $(Build.ArtifactStagingDirectory)/trivy-report.json \
+                $(containerRegistry)/$(imageRepository):$(tag)
+
+              trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress \
+                $(containerRegistry)/$(imageRepository):$(tag)
+            displayName: 'Run Trivy Scan'
+            continueOnError: false
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'trivy-reports'
+            displayName: 'Publish Trivy Report'
+            condition: always()
+
+  - stage: Push
+    displayName: Push to Registry
+    dependsOn: BuildDocker
+    condition: succeeded()
+    jobs:
+      - job: PushImage
+        displayName: Push Image to ACR
+        steps:
+          - task: Docker@2
+            displayName: 'Login to ACR'
+            inputs:
+              command: login
+              containerRegistry: $(dockerRegistryServiceConnection)
+
+          - task: Docker@2
+            displayName: 'Push Image to ACR'
+            inputs:
+              command: push
+              repository: $(containerRegistry)/$(imageRepository)
+              tags: |
+                $(tag)
+                $(latestTag)
+
+          # For AWS ECR instead, uncomment:
+          # - task: ECRPushImage@1
+          #   inputs:
+          #     awsCredentials: 'aws-credentials'
+          #     regionName: 'eu-west-1'
+          #     repositoryName: $(imageRepository)
+          #     imageSource: 'imageid'
+          #     imageTag: $(tag)
+          #   displayName: 'Push to ECR'
+
+  - stage: Deploy
+    displayName: Deploy to Kubernetes
+    dependsOn: Push
+    condition: succeeded()
+    jobs:
+      - job: DeployToAKS
+        displayName: Deploy to AKS
+        steps:
+          - task: KubernetesManifest@0
+            displayName: 'Deploy to AKS'
+            inputs:
+              action: 'deploy'
+              kubernetesServiceConnection: '$(kubernetesServiceConnection)'
+              namespace: 'default'
+              manifests: |
+                $(Pipeline.Workspace)/manifests/deployment.yml
+              containers: |
+                $(containerRegistry)/$(imageRepository):$(tag)
+
+          # For EKS instead, uncomment:
+          # - task: AWSShellScript@1
+          #   inputs:
+          #     awsCredentials: 'aws-credentials'
+          #     scriptType: 'inline'
+          #     inlineScript: |
+          #       aws eks update-kubeconfig --name $(eksClusterName) --region eu-west-1
+          #       kubectl set image deployment/static-app \
+          #         static-app=$(containerRegistry)/$(imageRepository):$(tag) -n default --record
+          #   displayName: 'Deploy to EKS'
+
+  - stage: ArgoCD
+    displayName: ArgoCD Sync
+    dependsOn: Deploy
+    condition: succeeded()
+    jobs:
+      - job: ArgoCDSync
+        displayName: Sync with ArgoCD
+        steps:
+          - script: |
+              # Install ArgoCD CLI
+              curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.8.0/argocd-linux-amd64
+              chmod +x /usr/local/bin/argocd
+            displayName: 'Install ArgoCD CLI'
+
+          - script: |
+              argocd app sync static-app-app \
+                --refresh \
+                --prune \
+                --server $(argoCDServer) \
+                --auth-token $(argoCDToken) \
+                --grpc-web
+            displayName: 'Trigger ArgoCD Sync'
+
+          - script: |
+              argocd app wait static-app-app \
+                --sync \
+                --server $(argoCDServer) \
+                --auth-token $(argoCDToken) \
+                --grpc-web
+            displayName: 'Wait for ArgoCD Sync'

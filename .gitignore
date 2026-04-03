@@ -1,0 +1,51 @@
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Credentials and secrets
+.env
+*.pem
+*.key
+*.crt
+secrets/
+credentials.json
+
+# Application files
+node_modules/
+.npm
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Docker
+.dockerignore
+.docker
+
+# Kubernetes
+kubeconfig
+.kube/config
+
+# Local testing
+local-*
+temp/
+.test/
+
+# Archived files
+*.zip
+*.tar.gz
+*.backup
