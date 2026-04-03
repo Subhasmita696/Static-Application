@@ -75,11 +75,8 @@ Test-Static-Application/
 ├── Dockerfile                # Container image definition
 ├── nginx.conf                # Web server configuration
 ├── .gitignore                # Git ignore rules
-├── STRUCTURE.md              # Folder organization guide
-├── SETUP_GUIDE.md            # Complete setup instructions
-├── TERRAFORM_GUIDE.md        # Terraform detailed guide
-├── TROUBLESHOOTING.md        # Common issues & solutions
-└── README.md                 # This file
+├── COMBINED_DOC_2.md         # This file
+└── COMBINED_DOC_1.md         # This file
 ```
 
 **[View Complete Structure →](STRUCTURE.md)**
